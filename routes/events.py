@@ -50,10 +50,10 @@ def post_event(
         {
             "title": title,
             "venue": venue,
-            "start_time": start_time,
-            "end_time": end_time,
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
             "image": upload_result["secure_url"],
             "description": description,
         }
