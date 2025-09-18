@@ -7,7 +7,7 @@ import jwt
 import os
 
 # Create users router
-users_router = APIRouter()
+users_router = APIRouter(tags=["Users"])
 
 
 # Define endpoints

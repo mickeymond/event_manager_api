@@ -22,6 +22,7 @@ app = FastAPI()
 def get_home():
     return {"message": "You are on the home page"}
 
+
 # Include routers
 app.include_router(events_router)
 app.include_router(users_router)

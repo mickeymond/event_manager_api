@@ -1,15 +1,15 @@
-from fastapi import Form, File, UploadFile, HTTPException, status, APIRouter, Depends
+from fastapi import Depends, Form, File, UploadFile, HTTPException, status, APIRouter
 from db import events_collection
 from bson.objectid import ObjectId
 from utils import replace_mongo_id
 from typing import Annotated
 import cloudinary
 import cloudinary.uploader
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import date, time
+from dependencies.authn import is_authenticated, authenticated_user
 
 # Create events router
-events_router = APIRouter()
+events_router = APIRouter(tags=["Events"])
 
 
 # Events endpoints
@@ -30,7 +30,7 @@ def get_events(title="", description="", limit=10, skip=0):
     return {"data": list(map(replace_mongo_id, events))}
 
 
-@events_router.post("/events")
+@events_router.post("/events", dependencies=[Depends(is_authenticated)])
 def post_event(
     title: Annotated[str, Form()],
     venue: Annotated[str, Form()],
@@ -40,9 +40,7 @@ def post_event(
     end_date: Annotated[date, Form()],
     image: Annotated[UploadFile, File()],
     description: Annotated[str, Form()],
-    # credentials: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
 ):
-    # print(credentials)
     # Upload image to cloudinary to get a url
     upload_result = cloudinary.uploader.upload(image.file)
     # Insert event into database
@@ -75,7 +73,7 @@ def get_event_by_id(event_id):
     return {"data": replace_mongo_id(event)}
 
 
-@events_router.put("/events/{event_id}")
+@events_router.put("/events/{event_id}", dependencies=[Depends(is_authenticated)])
 def replace_event(
     event_id,
     title: Annotated[str, Form()],
@@ -112,7 +110,7 @@ def replace_event(
     return {"message": "Event replaced successfully"}
 
 
-@events_router.delete("/events/{event_id}")
+@events_router.delete("/events/{event_id}", dependencies=[Depends(is_authenticated)])
 def delete_event(event_id):
     # Check if event_id is valid mongo id
     if not ObjectId.is_valid(event_id):
