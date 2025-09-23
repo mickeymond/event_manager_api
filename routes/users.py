@@ -1,3 +1,4 @@
+from enum import Enum
 from fastapi import APIRouter, Form, status, HTTPException
 from typing import Annotated
 from pydantic import EmailStr
@@ -5,6 +6,12 @@ from db import users_collection
 import bcrypt
 import jwt
 import os
+
+
+class UserRole(str, Enum):
+    VENDOR = "vendor"
+    CUSTOMER = "customer"
+
 
 # Create users router
 users_router = APIRouter(tags=["Users"])
@@ -16,6 +23,7 @@ def register_user(
     username: Annotated[str, Form()],
     email: Annotated[EmailStr, Form()],
     password: Annotated[str, Form(min_length=8)],
+    role: Annotated[UserRole, Form()] = UserRole.CUSTOMER,
 ):
     # Ensure user does not exist
     user_count = users_collection.count_documents(filter={"email": email})
@@ -25,7 +33,12 @@ def register_user(
     hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
     # Save user into database
     users_collection.insert_one(
-        {"username": username, "email": email, "password": hashed_password}
+        {
+            "username": username,
+            "email": email,
+            "password": hashed_password,
+            "role": role,
+        }
     )
     # Return response
     return {"message": "User registered successfully!"}

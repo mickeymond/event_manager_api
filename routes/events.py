@@ -6,7 +6,8 @@ from typing import Annotated
 import cloudinary
 import cloudinary.uploader
 from datetime import date, time
-from dependencies.authn import is_authenticated, authenticated_user
+from dependencies.authn import is_authenticated
+from dependencies.authz import has_roles
 
 # Create events router
 events_router = APIRouter(tags=["Events"])
@@ -30,7 +31,7 @@ def get_events(title="", description="", limit=10, skip=0):
     return {"data": list(map(replace_mongo_id, events))}
 
 
-@events_router.post("/events", dependencies=[Depends(is_authenticated)])
+@events_router.post("/events", dependencies=[Depends(has_roles(["vendor", "admin"]))])
 def post_event(
     title: Annotated[str, Form()],
     venue: Annotated[str, Form()],
@@ -40,6 +41,7 @@ def post_event(
     end_date: Annotated[date, Form()],
     image: Annotated[UploadFile, File()],
     description: Annotated[str, Form()],
+    user_id: Annotated[str, Depends(is_authenticated)],
 ):
     # Upload image to cloudinary to get a url
     upload_result = cloudinary.uploader.upload(image.file)
@@ -54,6 +56,7 @@ def post_event(
             "end_date": end_date.isoformat(),
             "image": upload_result["secure_url"],
             "description": description,
+            "owner": user_id,
         }
     )
     # Return response
@@ -73,7 +76,9 @@ def get_event_by_id(event_id):
     return {"data": replace_mongo_id(event)}
 
 
-@events_router.put("/events/{event_id}", dependencies=[Depends(is_authenticated)])
+@events_router.put(
+    "/events/{event_id}", dependencies=[Depends(has_roles(["vendor", "admin"]))]
+)
 def replace_event(
     event_id,
     title: Annotated[str, Form()],
@@ -84,6 +89,7 @@ def replace_event(
     end_date: Annotated[date, Form()],
     image: Annotated[UploadFile, File()],
     description: Annotated[str, Form()],
+    user_id: Annotated[str, Depends(is_authenticated)],
 ):
     # Check if event_id is valid mongo id
     if not ObjectId.is_valid(event_id):
@@ -93,8 +99,8 @@ def replace_event(
     # Upload image to cloudinary to get a url
     upload_result = cloudinary.uploader.upload(image.file)
     # Replace event in database
-    events_collection.replace_one(
-        filter={"_id": ObjectId(event_id)},
+    replace_result = events_collection.replace_one(
+        filter={"_id": ObjectId(event_id), "owner": user_id},
         replacement={
             "title": title,
             "venue": venue,
@@ -104,21 +110,31 @@ def replace_event(
             "end_date": end_date,
             "image": upload_result["secure_url"],
             "description": description,
+            "owner": user_id,
         },
     )
+    if not replace_result.modified_count:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No event found to replace!")
     # Return reponse
     return {"message": "Event replaced successfully"}
 
 
-@events_router.delete("/events/{event_id}", dependencies=[Depends(is_authenticated)])
-def delete_event(event_id):
+@events_router.delete(
+    "/events/{event_id}", dependencies=[Depends(has_roles(["vendor", "admin"]))]
+)
+def delete_event(
+    event_id,
+    user_id: Annotated[str, Depends(is_authenticated)],
+):
     # Check if event_id is valid mongo id
     if not ObjectId.is_valid(event_id):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid mongo id received!"
         )
     # Delete event from database
-    delete_result = events_collection.delete_one(filter={"_id": ObjectId(event_id)})
+    delete_result = events_collection.delete_one(
+        filter={"_id": ObjectId(event_id), "owner": user_id}
+    )
     if not delete_result.deleted_count:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No event found to delete!")
     # Return response
