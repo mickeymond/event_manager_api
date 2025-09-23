@@ -9,8 +9,14 @@ from bson.objectid import ObjectId
 
 
 def is_authenticated(
-    authorization: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
+    authorization: Annotated[
+        HTTPAuthorizationCredentials, Depends(HTTPBearer(auto_error=False))
+    ],
 ):
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated!"
+        )
     try:
         payload = jwt.decode(
             jwt=authorization.credentials,
