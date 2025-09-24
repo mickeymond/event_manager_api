@@ -142,7 +142,7 @@ def replace_event(
         )
         image = response.generated_images[0].image.image_bytes
     # Upload image to cloudinary to get a url
-    upload_result = cloudinary.uploader.upload(image.file)
+    upload_result = cloudinary.uploader.upload(image)
     # Replace event in database
     replace_result = events_collection.replace_one(
         filter={"_id": ObjectId(event_id), "owner": user_id},
