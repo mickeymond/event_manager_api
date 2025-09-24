@@ -9,7 +9,7 @@ genai_router = APIRouter(tags=["GenAI"])
 
 # Define endpoints
 @genai_router.post("/genai/generate_text", dependencies=[Depends(is_authenticated)])
-def generate_text(prompt=Annotated[str, Form()]):
+def generate_text(prompt: Annotated[str, Form()]):
     response = genai_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
